@@ -151,7 +151,8 @@ define(
          * telemetry framework when requested historical data is available.
          * Should be overridden by specializing class.
          */
-        TelemetryTableController.prototype.addHistoricalData = function () {
+        TelemetryTableController.prototype.addHistoricalData = function (telemetryData) {
+
         };
 
         /**
@@ -167,33 +168,27 @@ define(
             }
             this.$scope.loading = true;
 
-            function map(func){
-                return function (objects) {
-                    return Promise.all(objects.map(func));
-                }
-            }
-
-            function add(object){
-                return function (objects) {
-                    objects.unshift(object);
-                    return objects;
-                }
-            }
-
-            function subscribeTo(object) {
+            function requestData(object) {
                 return telemetryApi.request(object, {});
             }
 
-            function error() {
-                console.log("Unable to subscribe");
+            function newData(datum) {
+                console.log("Received: " + JSON.stringify(datum));
+            }
+
+            function subscribe(object) {
+                return telemetryApi.subscribe(object, newData, {});
+            }
+
+            function error(e) {
+                throw e;
             }
 
             this.openmct.composition.get(this.newObject)
                 .load()
-                .then(add(this.newObject))
-                .then(map(subscribeTo))
-                .then(function (telemetry) {
-                    console.log(telemetry.length);
+                .then(function (objects){
+                    objects.forEach(requestData);
+                    objects.forEach(subscribe);
                 }).catch(error);
 
             this.handle = this.$scope.domainObject && this.telemetryHandler.handle(
