@@ -51,15 +51,21 @@ define(
 
                 metadata.forEach(function (metadatum) {
                     var formatter = telemetryApi.getValueFormatter(metadatum);
+
                     self.addColumn({
                         getTitle: function () {
                             return metadatum.name;
                         },
-                        getValue: function(datum) {
+                        getValue: function(telemetryDatum, limitEvaluator) {
+                            var isValueColumn = !!(metadatum.hints.y || metadatum.hints.range);
+                            var alarm = isValueColumn &&
+                                        limitEvaluator &&
+                                        limitEvaluator.evaluate(telemetryDatum, metadatum);
+
                             return {
-                                //TODO: ALARMS
-                                cssClass: '',
-                                text: formatter.format(datum[metadatum.key])
+                                cssClass: alarm && alarm.cssClass,
+                                text: formatter ? formatter.format(telemetryDatum[metadatum.key])
+                                    : telemetryDatum[metadatum.key]
                             }
                         }
                     });
@@ -109,11 +115,11 @@ define(
          * @returns {Object} Key value pairs where the key is the column
          * title, and the value is the formatted value from the provided datum.
          */
-        TableConfiguration.prototype.getRowValues = function (datum) {
+        TableConfiguration.prototype.getRowValues = function (limitEvaluator, datum) {
             var self = this;
             return this.columns.reduce(function (rowObject, column, i) {
                 var columnTitle = self.getColumnTitle(column) || 'Column ' + (i + 1),
-                    columnValue = column.getValue(datum);
+                    columnValue = column.getValue(datum, limitEvaluator);
 
                 if (columnValue !== undefined && columnValue.text === undefined) {
                     columnValue.text = '';
