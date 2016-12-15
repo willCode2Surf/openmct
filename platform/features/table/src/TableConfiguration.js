@@ -21,12 +21,8 @@
  *****************************************************************************/
 
 define(
-    [
-        './DomainColumn',
-        './RangeColumn',
-        './NameColumn'
-    ],
-    function (DomainColumn, RangeColumn, NameColumn) {
+    [],
+    function () {
 
         /**
          * Class that manages table metadata, state, and contents.
@@ -34,10 +30,10 @@ define(
          * @param domainObject
          * @constructor
          */
-        function TableConfiguration(domainObject, telemetryFormatter) {
+        function TableConfiguration(domainObject, openmct) {
             this.domainObject = domainObject;
             this.columns = [];
-            this.telemetryFormatter = telemetryFormatter;
+            this.openmct = openmct;
         }
 
         /**
@@ -47,26 +43,27 @@ define(
          */
         TableConfiguration.prototype.populateColumns = function (metadata) {
             var self = this;
+            var telemetryApi = this.openmct.telemetry;
 
             this.columns = [];
 
             if (metadata) {
 
                 metadata.forEach(function (metadatum) {
-                    //Push domains first
-                    (metadatum.domains || []).forEach(function (domainMetadata) {
-                        self.addColumn(new DomainColumn(domainMetadata,
-                            self.telemetryFormatter));
-                    });
-                    (metadatum.ranges || []).forEach(function (rangeMetadata) {
-                        self.addColumn(new RangeColumn(rangeMetadata,
-                            self.telemetryFormatter));
+                    var formatter = telemetryApi.getValueFormatter(metadatum);
+                    self.addColumn({
+                        getTitle: function () {
+                            return metadatum.name;
+                        },
+                        getValue: function(datum) {
+                            return {
+                                //TODO: ALARMS
+                                cssClass: '',
+                                text: formatter.format(datum[metadatum.key])
+                            }
+                        }
                     });
                 });
-
-                if (this.columns.length > 0) {
-                    self.addColumn(new NameColumn(), 0);
-                }
             }
             return this;
         };
@@ -99,9 +96,8 @@ define(
          * @returns {Array} The titles of the columns
          */
         TableConfiguration.prototype.getHeaders = function () {
-            var self = this;
             return this.columns.map(function (column, i) {
-                return self.getColumnTitle(column) || 'Column ' + (i + 1);
+                return column.getTitle()|| 'Column ' + (i + 1);
             });
         };
 
@@ -113,11 +109,11 @@ define(
          * @returns {Object} Key value pairs where the key is the column
          * title, and the value is the formatted value from the provided datum.
          */
-        TableConfiguration.prototype.getRowValues = function (telemetryObject, datum) {
+        TableConfiguration.prototype.getRowValues = function (datum) {
             var self = this;
             return this.columns.reduce(function (rowObject, column, i) {
                 var columnTitle = self.getColumnTitle(column) || 'Column ' + (i + 1),
-                    columnValue = column.getValue(telemetryObject, datum);
+                    columnValue = column.getValue(datum);
 
                 if (columnValue !== undefined && columnValue.text === undefined) {
                     columnValue.text = '';
