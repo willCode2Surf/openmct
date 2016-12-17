@@ -29,11 +29,32 @@ define(
             this.formatService = formatService;
 
             //Bind all class functions to 'this'
-            Object.keys(MCTTableController.prototype).filter(function (key) {
-                return typeof MCTTableController.prototype[key] === 'function';
-            }).forEach(function (key) {
-                this[key] = MCTTableController.prototype[key].bind(this);
-            }.bind(this));
+            _.bindAll(this, [
+                'destroyConductorListeners',
+                'changeTimeSystem',
+                'scrollToBottom',
+                'addRow',
+                'removeRow',
+                'onScroll',
+                'firstVisible',
+                'lastVisible',
+                'setVisibleRows',
+                'setHeaders',
+                'setElementSizes',
+                'binarySearch',
+                'insertSorted',
+                'sortComparator',
+                'sortRows',
+                'buildLargestRow',
+                'resize',
+                'filterAndSort',
+                'setRows',
+                'filterRows',
+                'scrollToRow',
+                'setTimeOfInterest',
+                'changeBounds',
+                'onRowClick'
+            ]);
 
             this.scrollable.on('scroll', this.onScroll.bind(this));
 
