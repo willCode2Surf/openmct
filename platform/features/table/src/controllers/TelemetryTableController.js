@@ -42,10 +42,13 @@ define(
          */
         function TelemetryTableController(
             $scope,
+            $timeout,
             openmct
         ) {
             this.$scope = $scope;
+            this.$timeout = $timeout;
             this.openmct = openmct;
+            this.batchSize = 1000;
 
             /*
              * Initialization block
@@ -89,7 +92,7 @@ define(
             scope.defaultSort = undefined;
             if (timeSystem) {
                 this.table.columns.forEach(function (column) {
-                    if (column.domainMetadata && column.domainMetadata.key === timeSystem.metadata.key) {
+                    if (column.metadata.key === timeSystem.metadata.key) {
                         scope.defaultSort = column.getTitle();
                     }
                 });
@@ -163,29 +166,53 @@ define(
             var openmct = this.openmct;
             var bounds = openmct.conductor.bounds();
             var scope = this.$scope;
+            var processedObjects = 0;
 
-            function requestData (object) {
-                return openmct.telemetry.request(object, {
-                    start: bounds.start,
-                    end: bounds.end
-                }).then(makeTableRows.bind(this, object));
-            }
+            var promise = new Promise(function (resolve, reject){
+                function finishProcessing(tableRows){
+                    scope.rows = tableRows;
+                    scope.loading = false;
+                    resolve(tableRows);
+                }
 
-            function makeTableRows(object, historicalData) {
-                var limitEvaluator = openmct.telemetry.limitEvaluator(object);
-                return historicalData.map(
-                    this.table.getRowValues.bind(this.table, limitEvaluator)
-                );
-            }
+                function processData(historicalData, index, rowData, limitEvaluator){
+                    console.log("Processing batch");
+                    if (index >= historicalData.length) {
+                        processedObjects++;
 
-            function setRows(historicalData){
-                scope.rows = Array.prototype.concat.apply([], historicalData);
-                scope.loading = false;
-            }
+                        if (processedObjects === objects.length) {
+                            finishProcessing(rowData);
+                        }
+                    } else {
+                        rowData = rowData.concat(historicalData.slice(index, index + this.batchSize)
+                            .map(this.table.getRowValues.bind(this.table, limitEvaluator)));
+                        this.timeoutHandle = this.$timeout(processData.bind(
+                            this,
+                            historicalData,
+                            index + this.batchSize,
+                            rowData,
+                            limitEvaluator
+                        ));
+                    }
+                }
 
-            return Promise.all(
-                objects.map(requestData.bind(this))
-            ).then(setRows);
+                function makeTableRows(object, historicalData) {
+                    var limitEvaluator = openmct.telemetry.limitEvaluator(object);
+                    processData.call(this, historicalData, 0, [], limitEvaluator);
+                }
+
+                function requestData (object) {
+                    return openmct.telemetry.request(object, {
+                        start: bounds.start,
+                        end: bounds.end
+                    }).then(makeTableRows.bind(this, object))
+                        .catch(reject);
+                }
+                this.$timeout.cancel(this.timeoutHandle);
+                objects.forEach(requestData.bind(this));
+            }.bind(this));
+
+            return promise;
         };
 
         /**
@@ -221,11 +248,6 @@ define(
             return objects;
         };
 
-        /**
-         Create a new subscription. This can be overridden by children to
-         change default behaviour (which is to retrieve historical telemetry
-         only).
-         */
         TelemetryTableController.prototype.getData = function () {
             var telemetryApi = this.openmct.telemetry;
             var compositionApi = this.openmct.composition;
@@ -235,7 +257,8 @@ define(
             this.$scope.loading = true;
 
             function error(e) {
-                throw e;
+                scope.loading = false;
+                console.error(e);
             }
 
             function filterForTelemetry(objects){
@@ -267,7 +290,7 @@ define(
             getDomainObjects()
             .then(filterForTelemetry)
             .then(this.loadColumns)
-            .then(this.subscribeToNewData)
+            //.then(this.subscribeToNewData)
             .then(this.getHistoricalData)
             .catch(error)
         };
