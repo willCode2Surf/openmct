@@ -117,15 +117,16 @@ define(
                     }.bind(this)
                 )
             );
-
             this.openmct.conductor.on('timeSystem', this.sortByTimeSystem);
-            this.openmct.conductor.off('timeSystem', this.sortByTimeSystem);
         };
 
         /**
          * Release the current subscription (called when scope is destroyed)
          */
         TelemetryTableController.prototype.destroy = function () {
+
+            this.openmct.conductor.off('timeSystem', this.sortByTimeSystem);
+
             this.subscriptions.forEach(function (subscription) {
                 subscription();
             });
@@ -153,6 +154,11 @@ define(
                 });
 
                 this.filterColumns();
+
+                var timeSystem = this.openmct.conductor.timeSystem();
+                if (timeSystem) {
+                    this.sortByTimeSystem(timeSystem);
+                }
             }
             return objects;
         };
@@ -290,7 +296,7 @@ define(
             getDomainObjects()
             .then(filterForTelemetry)
             .then(this.loadColumns)
-            //.then(this.subscribeToNewData)
+            .then(this.subscribeToNewData)
             .then(this.getHistoricalData)
             .catch(error)
         };

@@ -53,7 +53,7 @@ define(
                     var formatter = telemetryApi.getValueFormatter(metadatum);
 
                     self.addColumn({
-                        metadata: metadata,
+                        metadata: metadatum,
                         getTitle: function () {
                             return metadatum.name;
                         },

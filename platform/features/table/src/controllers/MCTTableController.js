@@ -129,7 +129,11 @@ define(
              * Populated from the default-sort attribute on MctTable
              * directive tag.
              */
-            $scope.$watch('sortColumn', $scope.toggleSort);
+            $scope.$watch('defaultSort', function (newColumn, oldColumn) {
+                if (newColumn !== oldColumn) {
+                    $scope.toggleSort(newColumn)
+                }
+            });
 
             /*
              * Listen for resize events to trigger recalculation of table width
