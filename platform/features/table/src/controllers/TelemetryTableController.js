@@ -60,6 +60,7 @@ define(
             $scope.rows = [];
             this.table = new TableConfiguration($scope.domainObject,
                 openmct);
+            this.lastBounds = this.openmct.conductor.bounds();
 
             /*
              * Create a new format object from legacy object, and replace it
@@ -73,7 +74,8 @@ define(
                 'sortByTimeSystem',
                 'loadColumns',
                 'getHistoricalData',
-                'subscribeToNewData'
+                'subscribeToNewData',
+                'changeBounds'
             ]);
 
             this.getData();
@@ -95,6 +97,9 @@ define(
                     if (column.metadata.key === timeSystem.metadata.key) {
                         scope.defaultSort = column.getTitle();
                     }
+                });
+                this.$scope.rows = _.sortBy(this.$scope.rows, function (row) {
+                    return row[this.$scope.defaultSort];
                 });
             }
         };
@@ -118,6 +123,42 @@ define(
                 )
             );
             this.openmct.conductor.on('timeSystem', this.sortByTimeSystem);
+            this.openmct.conductor.on('bounds', this.changeBounds);
+        };
+
+        TelemetryTableController.prototype.tick = function (bounds) {
+            // Can't do ticking until we change how data is handled
+            // Pass raw values to table, with format function
+
+            /*if (this.$scope.defaultSort) {
+                this.$scope.rows.filter(function (row){
+                    return row[]
+                })
+            }*/
+        };
+
+        TelemetryTableController.prototype.changeBounds = function (bounds) {
+            var follow = this.openmct.conductor.follow();
+            var isTick = follow &&
+                bounds.start !== this.lastBounds.start &&
+                bounds.end !== this.lastBounds.end;
+            var isDeltaChange = follow &&
+                !isTick &&
+                (bounds.start !== this.lastBounds.start ||
+                bounds.end !== this.lastBounds.end);
+
+            if (isTick){
+                // Treat it as a realtime tick
+                // Drop old data that falls outside of bounds
+                this.tick(bounds);
+            } else if (isDeltaChange){
+                // No idea...
+                // Historical query for bounds, then tick on
+            } else {
+                // Is fixed bounds change
+                this.getData();
+            }
+            this.lastBounds = bounds;
         };
 
         /**
@@ -133,6 +174,8 @@ define(
             this.deregisterListeners.forEach(function (deregister){
                 deregister();
             });
+
+            this.openmct.conductor.off('bounds', this.changeBounds);
         };
 
         /**
