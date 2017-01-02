@@ -77,13 +77,13 @@ define(
          *
          * @constructor
          */
-        function MCTTable($timeout) {
+        function MCTTable() {
             return {
                 restrict: "E",
                 template: TableTemplate,
                 controller: [
                     '$scope',
-                    '$timeout',
+                    '$window',
                     '$element',
                     'exportService',
                     'formatService',

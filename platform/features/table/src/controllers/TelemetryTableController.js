@@ -61,6 +61,7 @@ define(
             this.table = new TableConfiguration($scope.domainObject,
                 openmct);
             this.lastBounds = this.openmct.conductor.bounds();
+            this.requestTime = 0;
 
             /*
              * Create a new format object from legacy object, and replace it
@@ -113,6 +114,7 @@ define(
             this.deregisterListeners.forEach(function (deregister){
                 deregister();
             });
+            this.deregisterListeners = [];
 
             this.deregisterListeners.push(
                 this.openmct.objects.observe(this.newObject, "*",
@@ -131,10 +133,10 @@ define(
             // Pass raw values to table, with format function
 
             /*if (this.$scope.defaultSort) {
-                this.$scope.rows.filter(function (row){
-                    return row[]
-                })
-            }*/
+             this.$scope.rows.filter(function (row){
+             return row[]
+             })
+             }*/
         };
 
         TelemetryTableController.prototype.changeBounds = function (bounds) {
@@ -154,6 +156,7 @@ define(
             } else if (isDeltaChange){
                 // No idea...
                 // Historical query for bounds, then tick on
+                this.getData();
             } else {
                 // Is fixed bounds change
                 this.getData();
@@ -167,6 +170,9 @@ define(
         TelemetryTableController.prototype.destroy = function () {
 
             this.openmct.conductor.off('timeSystem', this.sortByTimeSystem);
+            this.openmct.conductor.off('bounds', this.changeBounds);
+
+            console.log('cleaning up ' + this.subscriptions.length + ' subscriptions');
 
             this.subscriptions.forEach(function (subscription) {
                 subscription();
@@ -174,8 +180,28 @@ define(
             this.deregisterListeners.forEach(function (deregister){
                 deregister();
             });
+            this.subscriptions = [];
+            this.deregisterListeners = [];
 
-            this.openmct.conductor.off('bounds', this.changeBounds);
+            if (this.timeoutHandle) {
+                this.$timeout.cancel(this.timeoutHandle);
+            }
+
+            this.$scope['rows'] = null;
+
+            this.$scope = null;
+            [
+                'destroy',
+                'sortByTimeSystem',
+                'loadColumns',
+                'getHistoricalData',
+                'subscribeToNewData',
+                'changeBounds'
+            ].forEach(function (funcName){
+                this[funcName] = null;
+            }.bind(this));
+
+            this.table = null;
         };
 
         /**
@@ -216,11 +242,14 @@ define(
             var bounds = openmct.conductor.bounds();
             var scope = this.$scope;
             var processedObjects = 0;
+            var requestTime = this.lastRequestTime = Date.now();
 
-            var promise = new Promise(function (resolve, reject){
+            return new Promise(function (resolve, reject){
+                console.log('Created promise');
                 function finishProcessing(tableRows){
                     scope.rows = tableRows;
                     scope.loading = false;
+                    console.log('Resolved promise');
                     resolve(tableRows);
                 }
 
@@ -246,8 +275,15 @@ define(
                 }
 
                 function makeTableRows(object, historicalData) {
-                    var limitEvaluator = openmct.telemetry.limitEvaluator(object);
-                    processData.call(this, historicalData, 0, [], limitEvaluator);
+                    // Only process one request at a time
+                    if (requestTime === this.lastRequestTime) {
+                        console.log('Processing request');
+                        var limitEvaluator = openmct.telemetry.limitEvaluator(object);
+                        processData.call(this, historicalData, 0, [], limitEvaluator);
+                    } else {
+                        console.log('Ignoring returned data because of staleness');
+                        resolve([]);
+                    }
                 }
 
                 function requestData (object) {
@@ -258,10 +294,15 @@ define(
                         .catch(reject);
                 }
                 this.$timeout.cancel(this.timeoutHandle);
-                objects.forEach(requestData.bind(this));
-            }.bind(this));
 
-            return promise;
+                if (objects.length > 0){
+                    objects.forEach(requestData.bind(this));
+                } else {
+                    scope.loading = false;
+                    console.log('Resolved promise');
+                    resolve([]);
+                }
+            }.bind(this));
         };
 
         /**
@@ -273,6 +314,11 @@ define(
             var telemetryApi = this.openmct.telemetry;
             //Set table max length to avoid unbounded growth.
             var maxRows = 100000;
+
+            this.subscriptions.forEach(function (subscription) {
+                subscription();
+            });
+            this.subscriptions = [];
 
             function newData(domainObject, datum) {
                 this.$scope.rows.push(this.table.getRowValues(
@@ -292,6 +338,7 @@ define(
             objects.forEach(function (object){
                 this.subscriptions.push(
                     telemetryApi.subscribe(object, newData.bind(this, object), {}));
+                console.log('subscribed');
             }.bind(this));
 
             return objects;
@@ -337,11 +384,11 @@ define(
             scope.rows = [];
 
             getDomainObjects()
-            .then(filterForTelemetry)
-            .then(this.loadColumns)
-            .then(this.subscribeToNewData)
-            .then(this.getHistoricalData)
-            .catch(error)
+                .then(filterForTelemetry)
+                .then(this.loadColumns)
+                //.then(this.subscribeToNewData)
+                .then(this.getHistoricalData)
+                .catch(error)
         };
 
         /**
