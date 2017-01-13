@@ -28,7 +28,6 @@ define(
             this.toiFormatter = undefined;
             this.formatService = formatService;
             this.callbacks = {};
-            this.listeners = [];
 
             //Bind all class functions to 'this'
             _.bindAll(this, [
@@ -117,27 +116,27 @@ define(
             /*
              * Define watches to listen for changes to headers and rows.
              */
-            this.listeners.push($scope.$watchCollection('filters', function () {
+            $scope.$watchCollection('filters', function () {
                 self.setRows($scope.rows);
-            }));
-            this.listeners.push($scope.$watch('headers', this.setHeaders));
-            this.listeners.push($scope.$watch('rows', this.setRows));
+            });
+            $scope.$watch('headers', this.setHeaders);
+            $scope.$watch('rows', this.setRows);
 
             /*
              * Listen for rows added individually (eg. for real-time tables)
              */
-            this.listeners.push($scope.$on('add:row', this.addRow));
-            this.listeners.push($scope.$on('remove:row', this.removeRow));
+            $scope.$on('add:row', this.addRow);
+            $scope.$on('remove:row', this.removeRow);
 
             /**
              * Populated from the default-sort attribute on MctTable
              * directive tag.
              */
-            this.listeners.push($scope.$watch('defaultSort', function (newColumn, oldColumn) {
+            $scope.$watch('defaultSort', function (newColumn, oldColumn) {
                 if (newColumn !== oldColumn) {
                     $scope.toggleSort(newColumn)
                 }
-            }));
+            });
 
             /*
              * Listen for resize events to trigger recalculation of table width
@@ -149,7 +148,7 @@ define(
              * attribute on the MctTable tag. Indicates which columns, while
              * sorted, can be used for indicated time of interest.
              */
-            this.listeners.push($scope.$watch("timeColumns", function (timeColumns) {
+            $scope.$watch("timeColumns", function (timeColumns) {
                 if (timeColumns) {
                     this.destroyConductorListeners();
 
@@ -162,57 +161,20 @@ define(
                         this.changeTimeSystem(this.conductor.timeSystem());
                     }
                 }
-            }.bind(this)));
+            }.bind(this));
 
             console.log('constructed');
 
             $scope.$on('$destroy', function() {
                 this.scrollable.off('scroll', this.onScroll);
                 this.destroyConductorListeners();
-                this.listeners.forEach(function (listener){
-                    listener();
-                });
-                delete this.listeners;
 
-                [
-                    'destroyConductorListeners',
-                    'changeTimeSystem',
-                    'scrollToBottom',
-                    'addRow',
-                    'removeRow',
-                    'onScroll',
-                    'firstVisible',
-                    'lastVisible',
-                    'setVisibleRows',
-                    'setHeaders',
-                    'setElementSizes',
-                    'binarySearch',
-                    'insertSorted',
-                    'sortComparator',
-                    'sortRows',
-                    'buildLargestRow',
-                    'resize',
-                    'filterAndSort',
-                    'setRows',
-                    'filterRows',
-                    'scrollToRow',
-                    'setTimeOfInterestRow',
-                    'changeTimeOfInterest',
-                    'changeBounds',
-                    'onRowClick',
-                    'digest'
-                ].forEach(function (funcName) {
-                    this[funcName] = null;
-                }.bind(this));
-
-                delete this.$scope.toggleSort;
-                delete this.$scope.resize;
-                delete this.$scope.exportAsCSV;
-                delete this.$scope.table;
+                // In case for some reason this controller instance lingers around,
+                // destroy scope as it can be extremely large for large tables.
                 delete this.$scope;
 
             }.bind(this));
-        }
+        };
 
         MCTTableController.prototype.destroyConductorListeners = function () {
             this.conductor.off('timeSystem', this.changeTimeSystem);

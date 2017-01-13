@@ -172,8 +172,6 @@ define(
             this.openmct.conductor.off('timeSystem', this.sortByTimeSystem);
             this.openmct.conductor.off('bounds', this.changeBounds);
 
-            console.log('cleaning up ' + this.subscriptions.length + ' subscriptions');
-
             this.subscriptions.forEach(function (subscription) {
                 subscription();
             });
@@ -187,20 +185,10 @@ define(
                 this.$timeout.cancel(this.timeoutHandle);
             }
 
-            this.$scope['rows'] = null;
-
+            // In case controller instance lingers around (currently there is a
+            // temporary memory leak with PlotController), clean up scope as it
+            // can be extremely large.
             this.$scope = null;
-            [
-                'destroy',
-                'sortByTimeSystem',
-                'loadColumns',
-                'getHistoricalData',
-                'subscribeToNewData',
-                'changeBounds'
-            ].forEach(function (funcName){
-                this[funcName] = null;
-            }.bind(this));
-
             this.table = null;
         };
 
