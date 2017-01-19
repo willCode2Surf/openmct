@@ -59,7 +59,7 @@ define(
         };
 
         TelemetryCollection.prototype.isValid = function (element) {
-            var noBoundsDefined = !this.lastBounds;
+            var noBoundsDefined = !this.lastBounds || (!this.lastBounds.start && !this.lastBounds.end);
             var withinBounds = _.get(element, this.sortField) >= this.lastBounds.start &&
                 _.get(element, this.sortField) <= this.lastBounds.end;
 
@@ -67,12 +67,36 @@ define(
         };
 
         TelemetryCollection.prototype.add = function (element) {
+            //console.log('data: ' + element.Time.value);
             if (this.isValid(element)){
-                var ix = _.sortedIndex(this.telemetry, this.iteratee);
-                this.telemetry.splice(ix, 0, element);
-                return ix;
+                // Going to check for duplicates. Bound the search problem to
+                // elements around the given time. Use sortedIndex because it
+                // employs a binary search which is O(log n). Can use binary search
+                // based on time stamp because the array is guaranteed ordered due
+                // to sorted insertion.
+
+                var isDuplicate = false;
+                var startIx = _.sortedIndex(this.telemetry, element, this.sortField);
+
+                if (startIx !== this.telemetry.length) {
+                    var endIx = _.sortedLastIndex(this.telemetry, element, this.sortField);
+
+                    // Create an array of potential dupes, based on having the
+                    // same time stamp
+                    var potentialDupes = this.telemetry.slice(startIx, endIx + 1);
+                    // Search potential dupes for exact dupe
+                    isDuplicate = _.findIndex(potentialDupes, _.isEqual.bind(undefined, element)) > -1;
+                }
+
+                if (!isDuplicate) {
+                    this.telemetry.splice(startIx, 0, element);
+                    return true;
+                } else {
+                    return false;
+                }
+
             } else {
-                return -1;
+                return false;
             }
         };
 

@@ -138,11 +138,8 @@ define(
             this.openmct.conductor.on('bounds', this.changeBounds);
         };
 
-        TelemetryTableController.prototype.tick = function (bounds) {
-
-        };
-
         TelemetryTableController.prototype.changeBounds = function (bounds) {
+            //console.log('bounds.end: ' + bounds.end);
             var follow = this.openmct.conductor.follow();
             var isTick = follow &&
                 bounds.start !== this.lastBounds.start &&
@@ -161,7 +158,7 @@ define(
             if (isTick){
                 // Treat it as a realtime tick
                 // Drop old data that falls outside of bounds
-                this.tick(bounds);
+                //this.tick(bounds);
             } else if (isDeltaChange){
                 // No idea...
                 // Historical query for bounds, then tick on
@@ -266,10 +263,6 @@ define(
                                 telemetryCollection.add(this.table.getRowValues(
                                     limitEvaluator, datum));
                             }.bind(this));
-                        /*rowData = rowData.concat(
-                            historicalData.slice(index, index + this.batchSize).map(
-                                this.table.getRowValues.bind(this.table, limitEvaluator))
-                        );*/
                         this.timeoutHandle = this.$timeout(processData.bind(
                             this,
                             historicalData,
@@ -314,9 +307,12 @@ define(
          */
         TelemetryTableController.prototype.subscribeToNewData = function (objects) {
             var telemetryApi = this.openmct.telemetry;
+            var telemetryCollection = this.telemetry;
             //Set table max length to avoid unbounded growth.
             //var maxRows = 100000;
             var maxRows = Number.MAX_VALUE;
+            var limitEvaluator;
+            var added = false;
 
             this.subscriptions.forEach(function (subscription) {
                 subscription();
@@ -324,15 +320,15 @@ define(
             this.subscriptions = [];
 
             function newData(domainObject, datum) {
-                this.$scope.rows.push(this.table.getRowValues(
-                    telemetryApi.limitEvaluator(domainObject), datum));
+                limitEvaluator = telemetryApi.limitEvaluator(domainObject);
+                added = telemetryCollection.add(this.table.getRowValues(limitEvaluator, datum));
 
                 //Inform table that a new row has been added
                 if (this.$scope.rows.length > maxRows) {
                     this.$scope.$broadcast('remove:rows', this.$scope.rows[0]);
                     this.$scope.rows.shift();
                 }
-                if (!this.$scope.loading) {
+                if (!this.$scope.loading && added) {
                     this.$scope.$broadcast('add:row',
                         this.$scope.rows.length - 1);
                 }
@@ -388,7 +384,7 @@ define(
             getDomainObjects()
                 .then(filterForTelemetry)
                 .then(this.loadColumns)
-                //.then(this.subscribeToNewData)
+                .then(this.subscribeToNewData)
                 .then(this.getHistoricalData)
                 .catch(error)
         };

@@ -246,7 +246,7 @@ define(
             this.setVisibleRows()
                 .then(function () {
                     if (this.$scope.autoScroll) {
-                        //this.scrollToBottom();
+                        this.scrollToBottom();
                     }
                 }.bind(this));
 
