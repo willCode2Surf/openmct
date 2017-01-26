@@ -252,7 +252,7 @@ define(
          * @private
          */
         MCTTableController.prototype.onScroll = function (event) {
-            requestAnimationFrame(function () {
+            this.$window.requestAnimationFrame(function () {
                 this.setVisibleRows();
                 this.digest();
 
@@ -585,19 +585,24 @@ define(
         MCTTableController.prototype.digest = function () {
             var scope = this.$scope;
             var self = this;
-            var requestAnimationFrame = this.$window.requestAnimationFrame;
+            var raf = this.$window.requestAnimationFrame;
+            var promise = this.digestPromise;
 
-            if (!this.digestPromise) {
-                this.digestPromise = new Promise(function (resolve) {
-                    requestAnimationFrame(function() {
+            if (!promise) {
+                console.log('step 1');
+                self.digestPromise = promise = new Promise(function (resolve) {
+                    raf(function() {
+                        console.log('step 2');
                         scope.$digest();
-                        delete self.digestPromise;
+                        self.digestPromise = undefined;
                         resolve();
+                        console.log('step 3');
                     });
                 });
+                console.log('step 4');
             }
 
-            return this.digestPromise;
+            return promise;
         };
 
         /**
@@ -641,7 +646,9 @@ define(
 
             this.$scope.displayRows = this.filterAndSort(newRows || []);
             this.resize(newRows)
-                .then(this.setVisibleRows)
+                .then(function (rows){
+                    return this.setVisibleRows(rows)
+                }.bind(this))
                 //Timeout following setVisibleRows to allow digest to
                 // perform DOM changes, otherwise scrollTo won't work.
                 .then(function () {

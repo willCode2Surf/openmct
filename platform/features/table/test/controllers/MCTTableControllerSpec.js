@@ -39,7 +39,7 @@ define(
             var controller,
                 mockScope,
                 watches,
-                mockTimeout,
+                mockWindow,
                 mockElement,
                 mockExportService,
                 mockConductor,
@@ -66,7 +66,8 @@ define(
                 mockScope = jasmine.createSpyObj('scope', [
                    '$watch',
                    '$on',
-                   '$watchCollection'
+                   '$watchCollection',
+                   '$digest'
                 ]);
                 mockScope.$watchCollection.andCallFake(function (event, callback) {
                     watches[event] = callback;
@@ -86,8 +87,11 @@ define(
                 ]);
 
                 mockScope.displayHeaders = true;
-                mockTimeout = jasmine.createSpy('$timeout');
-                mockTimeout.andReturn(promise(undefined));
+                mockWindow = jasmine.createSpyObj('$window', ['requestAnimationFrame']);
+                mockWindow.requestAnimationFrame.andCallFake(function (f) {
+                    return f();
+                });
+
                 mockFormat = jasmine.createSpyObj('formatter', [
                     'parse',
                     'format'
@@ -99,7 +103,7 @@ define(
 
                 controller = new MCTTableController(
                     mockScope,
-                    mockTimeout,
+                    mockWindow,
                     mockElement,
                     mockExportService,
                     mockFormatService,
@@ -115,11 +119,11 @@ define(
             });
 
             it('destroys listeners on destruction', function () {
-                expect(mockScope.$on).toHaveBeenCalledWith('$destroy', controller.destroyConductorListeners);
+                expect(mockScope.$on).toHaveBeenCalledWith('$destroy', jasmine.any(Function));
                 getCallback(mockScope.$on, '$destroy')();
 
                 expect(mockConductor.off).toHaveBeenCalledWith('timeSystem', controller.changeTimeSystem);
-                expect(mockConductor.off).toHaveBeenCalledWith('timeOfInterest', controller.setTimeOfInterest);
+                expect(mockConductor.off).toHaveBeenCalledWith('timeOfInterest', controller.changeTimeOfInterest);
                 expect(mockConductor.off).toHaveBeenCalledWith('bounds', controller.changeBounds);
             });
 
@@ -235,7 +239,14 @@ define(
                         var rowsCallback = getCallback(mockScope.$watch, 'rows');
                         rowsCallback(rowsAsc);
 
-                        expect(mockScope.toiRowIndex).toBe(2);
+                        waitsFor(function (){
+                            return controller.digestPromise === undefined;
+                        }, "promise to resolve", 100);
+
+                        runs(function () {
+                            expect(mockScope.toiRowIndex).toBe(2);
+                        });
+
                     });
 
                 });
@@ -287,7 +298,7 @@ define(
                 });
 
                 it('Supports adding rows individually', function () {
-                    var addRowFunc = getCallback(mockScope.$on, 'add:row'),
+                    var addRowFunc = getCallback(mockScope.$on, 'add:rows'),
                         row4 = {
                             'col1': {'text': 'row3 col1'},
                             'col2': {'text': 'ghi'},
@@ -296,15 +307,15 @@ define(
                     controller.setRows(testRows);
                     expect(mockScope.displayRows.length).toBe(3);
                     testRows.push(row4);
-                    addRowFunc(undefined, 3);
+                    addRowFunc(undefined, [row4]);
                     expect(mockScope.displayRows.length).toBe(4);
                 });
 
                 it('Supports removing rows individually', function () {
-                    var removeRowFunc = getCallback(mockScope.$on, 'remove:row');
+                    var removeRowFunc = getCallback(mockScope.$on, 'remove:rows');
                     controller.setRows(testRows);
                     expect(mockScope.displayRows.length).toBe(3);
-                    removeRowFunc(undefined, 2);
+                    removeRowFunc(undefined, [testRows[2]]);
                     expect(mockScope.displayRows.length).toBe(2);
                     expect(controller.setVisibleRows).toHaveBeenCalled();
                 });
@@ -366,7 +377,7 @@ define(
                     it('Allows sort column to be changed externally by ' +
                        'setting or changing sortBy attribute', function () {
                         mockScope.displayRows = testRows;
-                        var sortByCB = getCallback(mockScope.$watch, 'sortColumn');
+                        var sortByCB = getCallback(mockScope.$watch, 'defaultSort');
                         sortByCB('col2');
 
                         expect(mockScope.sortDirection).toEqual('asc');
