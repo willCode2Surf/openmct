@@ -237,10 +237,14 @@ define(
 
                         //Mock setting the rows on scope
                         var rowsCallback = getCallback(mockScope.$watch, 'rows');
-                        rowsCallback(rowsAsc);
+                        var setRowsPromise = rowsCallback(rowsAsc);
+                        var promiseResolved = false;
+                        setRowsPromise.then(function() {
+                            promiseResolved = true;
+                        });
 
                         waitsFor(function (){
-                            return controller.digestPromise === undefined;
+                            return promiseResolved;
                         }, "promise to resolve", 100);
 
                         runs(function () {
@@ -392,10 +396,21 @@ define(
                     it('updates visible rows in scope', function () {
                         var oldRows;
                         mockScope.rows = testRows;
-                        controller.setRows(testRows);
+                        var setRowsPromise = controller.setRows(testRows);
+                        var promiseResolved = false;
+                        setRowsPromise.then(function() {
+                            promiseResolved = true;
+                        });
                         oldRows = mockScope.visibleRows;
                         mockScope.toggleSort('col2');
-                        expect(mockScope.visibleRows).not.toEqual(oldRows);
+
+                        waitsFor(function (){
+                            return promiseResolved;
+                        }, "promise to resolve", 100);
+
+                        runs(function () {
+                            expect(mockScope.visibleRows).not.toEqual(oldRows);
+                        });
                     });
 
                     it('correctly sorts rows of differing types', function () {
@@ -475,21 +490,17 @@ define(
 
                             mockScope.displayRows = controller.sortRows(testRows.slice(0));
 
-                            mockScope.rows.push(row4);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row4]);
                             expect(mockScope.displayRows[0].col2.text).toEqual('xyz');
 
-                            mockScope.rows.push(row5);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row5]);
                             expect(mockScope.displayRows[4].col2.text).toEqual('aaa');
 
-                            mockScope.rows.push(row6);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row6]);
                             expect(mockScope.displayRows[2].col2.text).toEqual('ggg');
 
                             //Add a duplicate row
-                            mockScope.rows.push(row6);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row6]);
                             expect(mockScope.displayRows[2].col2.text).toEqual('ggg');
                             expect(mockScope.displayRows[3].col2.text).toEqual('ggg');
                         });
@@ -504,13 +515,11 @@ define(
                             mockScope.displayRows = controller.sortRows(testRows.slice(0));
                             mockScope.displayRows = controller.filterRows(testRows);
 
-                            mockScope.rows.push(row5);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row5]);
                             expect(mockScope.displayRows.length).toBe(2);
                             expect(mockScope.displayRows[1].col2.text).toEqual('aaa');
 
-                            mockScope.rows.push(row6);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row6]);
                             expect(mockScope.displayRows.length).toBe(2);
                             //Row was not added because does not match filter
                         });
@@ -523,12 +532,10 @@ define(
 
                             mockScope.displayRows = testRows.slice(0);
 
-                            mockScope.rows.push(row5);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row5]);
                             expect(mockScope.displayRows[3].col2.text).toEqual('aaa');
 
-                            mockScope.rows.push(row6);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row6]);
                             expect(mockScope.displayRows[4].col2.text).toEqual('ggg');
                         });
 
@@ -546,8 +553,7 @@ define(
 
                             mockScope.displayRows = testRows.slice(0);
 
-                            mockScope.rows.push(row7);
-                            controller.addRows(undefined, mockScope.rows.length - 1);
+                            controller.addRows(undefined, [row7]);
                             expect(controller.$scope.sizingRow.col2).toEqual({text: 'some longer string'});
                         });
 

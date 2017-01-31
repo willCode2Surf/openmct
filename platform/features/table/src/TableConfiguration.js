@@ -53,7 +53,9 @@ define(
                     var formatter = telemetryApi.getValueFormatter(metadatum);
 
                     self.addColumn({
-                        metadata: metadatum,
+                        getKey: function () {
+                            return metadatum.key;
+                        },
                         getTitle: function () {
                             return metadatum.name;
                         },
@@ -64,7 +66,7 @@ define(
                                         limitEvaluator.evaluate(telemetryDatum, metadatum);
 
                             return {
-                                cssClass: alarm && alarm.cssClass,
+                                cssClass: alarm.cssClass,
                                 text: formatter ? formatter.format(telemetryDatum[metadatum.key])
                                     : telemetryDatum[metadatum.key],
                                 value: telemetryDatum[metadatum.key]
@@ -81,6 +83,7 @@ define(
          * @param {RangeColumn | DomainColumn | NameColumn} column
          * @param {Number} [index] Where the column should appear (will be
          * affected by column filtering)
+         * @private
          */
         TableConfiguration.prototype.addColumn = function (column, index) {
             if (typeof index === 'undefined') {
@@ -88,15 +91,6 @@ define(
             } else {
                 this.columns.splice(index, 0, column);
             }
-        };
-
-        /**
-         * @private
-         * @param column
-         * @returns {*|string}
-         */
-        TableConfiguration.prototype.getColumnTitle = function (column) {
-            return column.getTitle();
         };
 
         /**
@@ -118,16 +112,15 @@ define(
          * title, and the value is the formatted value from the provided datum.
          */
         TableConfiguration.prototype.getRowValues = function (limitEvaluator, datum) {
-            var self = this;
             return this.columns.reduce(function (rowObject, column, i) {
-                var columnTitle = self.getColumnTitle(column) || 'Column ' + (i + 1),
+                var columnTitle = column.getTitle() || 'Column ' + (i + 1),
                     columnValue = column.getValue(datum, limitEvaluator);
 
                 if (columnValue !== undefined && columnValue.text === undefined) {
                     columnValue.text = '';
                 }
                 // Don't replace something with nothing.
-                // This occurs when there are multiple columns with the
+                // This occurs when there are multiple columns with the same
                 // column title
                 if (rowObject[columnTitle] === undefined ||
                     rowObject[columnTitle].text === undefined ||

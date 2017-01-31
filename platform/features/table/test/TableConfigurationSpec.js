@@ -97,12 +97,16 @@ define(
                     {
                         name: 'Range 1',
                         key: 'range1',
-                        hints: {}
+                        hints: {
+                            y: 1
+                        }
                     },
                     {
                         name: 'Range 2',
                         key: 'range2',
-                        hints: {}
+                        hints: {
+                            y: 2
+                        }
                     },
                     {
                         name: 'Domain 1',
@@ -130,10 +134,6 @@ define(
                     expect(table.columns.length).toBe(4);
                 });
 
-                it("Populates columns with domains arranged first", function () {
-                    //TODO
-                });
-
                 it("Produces headers for each column based on title", function () {
                     var headers,
                         firstColumn = table.columns[0];
@@ -152,10 +152,6 @@ define(
                     expect(Object.keys(configuration).every(function (key) {
                         return configuration[key];
                     }));
-                });
-
-                it("Applies appropriate css class if limit violated.", function () {
-
                 });
 
                 it("Column configuration exposes persisted configuration", function () {
@@ -181,21 +177,31 @@ define(
 
                     beforeEach(function () {
                         datum = {
-                            'range1': 'range 1 value',
-                            'range2': 'range 2 value',
+                            'range1': 10,
+                            'range2': 20,
                             'domain1': 0,
                             'domain2': 1
                         };
-                        rowValues = table.getRowValues(mockDomainObject, datum);
+                        var limitEvaluator = {
+                            evaluate: function () {
+                                return {
+                                    "cssClass": "alarm-class"
+                                };
+                            }
+                        };
+                        rowValues = table.getRowValues(limitEvaluator, datum);
                     });
 
                     it("Returns a value for every column", function () {
                         expect(rowValues['Range 1'].text).toBeDefined();
-                        expect(rowValues['Range 1'].text).toEqual('range 1' +
-                            ' value');
+                        expect(rowValues['Range 1'].text).toEqual(10);
                     });
 
-                    it("Uses the telemetry formatter to appropriately format" +
+                    it("Applies appropriate css class if limit violated.", function () {
+                        expect(rowValues['Range 1'].cssClass).toEqual("alarm-class");
+                    });
+
+                    it("Uses telemetry formatter to appropriately format" +
                         " telemetry values", function () {
                         expect(mockTelemetryFormatter.format).toHaveBeenCalled();
                     });

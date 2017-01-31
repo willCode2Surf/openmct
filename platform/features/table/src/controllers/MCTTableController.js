@@ -589,17 +589,13 @@ define(
             var promise = this.digestPromise;
 
             if (!promise) {
-                console.log('step 1');
                 self.digestPromise = promise = new Promise(function (resolve) {
                     raf(function() {
-                        console.log('step 2');
                         scope.$digest();
                         self.digestPromise = undefined;
                         resolve();
-                        console.log('step 3');
                     });
                 });
-                console.log('step 4');
             }
 
             return promise;
@@ -645,7 +641,7 @@ define(
             }
 
             this.$scope.displayRows = this.filterAndSort(newRows || []);
-            this.resize(newRows)
+            return this.resize(newRows)
                 .then(function (rows){
                     return this.setVisibleRows(rows)
                 }.bind(this))

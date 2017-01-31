@@ -112,7 +112,7 @@ define(
 
             if (timeSystem) {
                 this.table.columns.forEach(function (column) {
-                    if (column.metadata.key === timeSystem.metadata.key) {
+                    if (column.getKey() === timeSystem.metadata.key) {
                         sortColumn = column;
                     }
                 });
