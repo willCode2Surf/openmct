@@ -55,14 +55,14 @@ define(
              * Initialization block
              */
             this.columns = {}; //Range and Domain columns
-            this.deregisterListeners = [];
+            this.unobserveObject = undefined;
             this.subscriptions = [];
             this.timeColumns = [];
             $scope.rows = [];
             this.table = new TableConfiguration($scope.domainObject,
                 openmct);
             this.lastBounds = this.openmct.conductor.bounds();
-            this.requestTime = 0;
+            this.lastRequestTime = 0;
             this.telemetry = new TelemetryCollection();
 
             /*
@@ -81,21 +81,20 @@ define(
                 'changeBounds',
                 'setScroll',
                 'addRowsToTable',
-                'removeRowsFromTable',
+                'removeRowsFromTable'
             ]);
 
             this.getData();
             this.registerChangeListeners();
-
-            this.openmct.conductor.on('follow', this.setScroll);
             this.setScroll(this.openmct.conductor.follow());
-
-            this.telemetry.on('added', this.addRowsToTable);
-            this.telemetry.on('discarded', this.removeRowsFromTable);
 
             this.$scope.$on("$destroy", this.destroy);
         }
 
+        /**
+         * @private
+         * @param {boolean} scroll
+         */
         TelemetryTableController.prototype.setScroll = function (scroll){
             this.$scope.autoScroll = scroll;
         };
@@ -103,7 +102,9 @@ define(
         /**
          * Based on the selected time system, find a matching domain column
          * to sort by. By default will just match on key.
-         * @param timeSystem
+         *
+         * @private
+         * @param {TimeSystem} timeSystem
          */
         TelemetryTableController.prototype.sortByTimeSystem = function (timeSystem) {
             var scope = this.$scope;
@@ -124,38 +125,60 @@ define(
         };
 
         /**
-         * Attach listeners to domain object to respond to changes due to
-         * composition, etc.
+         * Attaches listeners that respond to state change in domain object,
+         * conductor, and receipt of telemetry
+         *
          * @private
          */
         TelemetryTableController.prototype.registerChangeListeners = function () {
-            this.deregisterListeners.forEach(function (deregister){
-                deregister();
-            });
-            this.deregisterListeners = [];
+            if (this.unobserveObject) {
+                this.unobserveObject();
+            }
 
-            this.deregisterListeners.push(
-                this.openmct.objects.observe(this.newObject, "*",
+            this.unobserveObject = this.openmct.objects.observe(this.newObject, "*",
                     function (domainObject){
                         this.newObject = domainObject;
                         this.getData();
                     }.bind(this)
-                )
-            );
+                );
+
             this.openmct.conductor.on('timeSystem', this.sortByTimeSystem);
             this.openmct.conductor.on('bounds', this.changeBounds);
+            this.openmct.conductor.on('follow', this.setScroll);
+
+            this.telemetry.on('added', this.addRowsToTable);
+            this.telemetry.on('discarded', this.removeRowsFromTable);
         };
 
+        /**
+         * On receipt of new telemetry, informs mct-table directive that new rows
+         * are available and passes populated rows to it
+         *
+         * @private
+         * @param rows
+         */
         TelemetryTableController.prototype.addRowsToTable = function (rows) {
             this.$scope.$broadcast('add:rows', rows);
         };
 
+        /**
+         * When rows are to be removed, informs mct-table directive. Row removal
+         * happens when rows call outside the bounds of the time conductor
+         *
+         * @private
+         * @param rows
+         */
         TelemetryTableController.prototype.removeRowsFromTable = function (rows) {
             this.$scope.$broadcast('remove:rows', rows);
         };
 
+        /**
+         * On Time Conductor bounds change, update displayed telemetry. In the
+         * case of a tick, previously visible telemetry that is now out of band
+         * will be removed from the table.
+         * @param bounds
+         */
         TelemetryTableController.prototype.changeBounds = function (bounds) {
-            //console.log('bounds.end: ' + bounds.end);
             var follow = this.openmct.conductor.follow();
             var isTick = follow &&
                 bounds.start !== this.lastBounds.start &&
@@ -182,11 +205,11 @@ define(
             this.subscriptions.forEach(function (subscription) {
                 subscription();
             });
-            this.deregisterListeners.forEach(function (deregister){
-                deregister();
-            });
+
+            if (this.unobserveObject) {
+                this.unobserveObject();
+            }
             this.subscriptions = [];
-            this.deregisterListeners = [];
 
             if (this.timeoutHandle) {
                 this.$timeout.cancel(this.timeoutHandle);
@@ -200,9 +223,10 @@ define(
         };
 
         /**
+         * For given objects, populate column metadata and table headers.
          * @private
-         * @param objects
-         * @returns {*}
+         * @param {module:openmct.DomainObject[]} objects the domain objects for
+         * which columns should be populated
          */
         TelemetryTableController.prototype.loadColumns = function (objects) {
             var telemetryApi = this.openmct.telemetry;
@@ -234,9 +258,10 @@ define(
         };
 
         /**
+         * Request telemetry data from an historical store for given objects.
          * @private
-         * @param objects The domain objects to request telemetry for
-         * @returns {*|{configFile}|app|boolean|Route|Object}
+         * @param {module:openmct.DomainObject[]} The domain objects to request telemetry for
+         * @returns {Promise} resolved when historical data is available
          */
         TelemetryTableController.prototype.getHistoricalData = function (objects) {
             var openmct = this.openmct;
@@ -248,6 +273,9 @@ define(
             var telemetryCollection = this.telemetry;
 
             return new Promise(function (resolve, reject){
+                /*
+                 * On completion of batched processing, set the rows on scope
+                 */
                 function finishProcessing(){
                     telemetryCollection.addAll(rowData);
                     scope.rows = telemetryCollection.telemetry;
@@ -255,6 +283,9 @@ define(
                     resolve(scope.rows);
                 }
 
+                /*
+                 * Process a batch of historical data
+                 */
                 function processData(historicalData, index, limitEvaluator){
                     if (index >= historicalData.length) {
                         processedObjects++;
@@ -266,6 +297,10 @@ define(
                         rowData = rowData.concat(historicalData.slice(index, index + this.batchSize)
                             .map(this.table.getRowValues.bind(this.table, limitEvaluator)));
 
+                        /*
+                         Use timeout to yield process to other UI activities. On
+                         return, process next batch
+                         */
                         this.timeoutHandle = this.$timeout(processData.bind(
                             this,
                             historicalData,
@@ -276,7 +311,7 @@ define(
                 }
 
                 function makeTableRows(object, historicalData) {
-                    // Only process one request at a time
+                    // Only process the most recent request
                     if (requestTime === this.lastRequestTime) {
                         var limitEvaluator = openmct.telemetry.limitEvaluator(object);
                         processData.call(this, historicalData, 0, limitEvaluator);
@@ -285,6 +320,9 @@ define(
                     }
                 }
 
+                /*
+                Use the telemetry API to request telemetry for a given obejct
+                 */
                 function requestData (object) {
                     return openmct.telemetry.request(object, {
                         start: bounds.start,
@@ -305,9 +343,9 @@ define(
 
 
         /**
+         * Subscribe to real-time data for the given objects.
          * @private
-         * @param objects
-         * @returns {*}
+         * @param {module:openmct.DomainObject[]} objects The objects to subscribe to.
          */
         TelemetryTableController.prototype.subscribeToNewData = function (objects) {
             var telemetryApi = this.openmct.telemetry;
