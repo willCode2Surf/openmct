@@ -64,13 +64,16 @@ define(
                             var alarm = isValueColumn &&
                                         limitEvaluator &&
                                         limitEvaluator.evaluate(telemetryDatum, metadatum);
-
-                            return {
-                                cssClass: alarm.cssClass,
+                            var value = {
                                 text: formatter ? formatter.format(telemetryDatum[metadatum.key])
                                     : telemetryDatum[metadatum.key],
                                 value: telemetryDatum[metadatum.key]
+                            };
+
+                            if (alarm){
+                                value.cssClass = alarm.cssClass;
                             }
+                            return value;
                         }
                     });
                 });

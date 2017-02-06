@@ -46,6 +46,7 @@ define(
             $timeout,
             openmct
         ) {
+
             this.$scope = $scope;
             this.$timeout = $timeout;
             this.openmct = openmct;
@@ -84,8 +85,15 @@ define(
                 'removeRowsFromTable'
             ]);
 
-            this.getData();
-            this.registerChangeListeners();
+            // Retrieve data when domain object is available.
+            // Also deferring telemetry request makes testing easier as controller
+            // construction has no unintended consequences.
+            $scope.$watch("domainObject", function () {
+                console.log("domainObject changed");
+                this.getData();
+                this.registerChangeListeners();
+            }.bind(this));
+
             this.setScroll(this.openmct.conductor.follow());
 
             this.$scope.$on("$destroy", this.destroy);
@@ -272,7 +280,7 @@ define(
             var requestTime = this.lastRequestTime = Date.now();
             var telemetryCollection = this.telemetry;
 
-            return new Promise(function (resolve, reject){
+            var promise = new Promise(function (resolve, reject){
                 /*
                  * On completion of batched processing, set the rows on scope
                  */
@@ -280,6 +288,7 @@ define(
                     telemetryCollection.addAll(rowData);
                     scope.rows = telemetryCollection.telemetry;
                     scope.loading = false;
+
                     resolve(scope.rows);
                 }
 
@@ -339,6 +348,8 @@ define(
                     resolve([]);
                 }
             }.bind(this));
+
+            return promise;
         };
 
 
@@ -397,7 +408,7 @@ define(
 
             function error(e) {
                 scope.loading = false;
-                console.error(e);
+                console.error(e.stack);
             }
 
             function filterForTelemetry(objects){
@@ -405,28 +416,24 @@ define(
             }
 
             function getDomainObjects() {
-                return new Promise(function (resolve, reject){
-                    var objects = [newObject];
-                    var composition = compositionApi.get(newObject);
+                var objects = [newObject];
+                var composition = compositionApi.get(newObject);
 
-                    if (composition) {
-                        composition
-                            .load()
-                            .then(function (children) {
-                                return objects.concat(children);
-                            })
-                            .then(resolve)
-                            .catch(reject);
-                    } else {
-                        return resolve(objects);
-                    }
-                });
+                if (composition) {
+                    return composition
+                        .load()
+                        .then(function (children) {
+                            return objects.concat(children);
+                        })
+                } else {
+                    return Promise.resolve(objects);
+                }
             }
 
             scope.headers = [];
             scope.rows = [];
 
-            getDomainObjects()
+            return getDomainObjects()
                 .then(filterForTelemetry)
                 .then(this.loadColumns)
                 .then(this.subscribeToNewData)

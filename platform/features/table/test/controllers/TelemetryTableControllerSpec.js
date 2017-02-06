@@ -21,20 +21,26 @@
  *****************************************************************************/
 
 define(
-    [],
-    function () {
+    [
+        '../../src/controllers/TelemetryTableController',
+        '../../../../../src/api/objects/object-utils',
+        'lodash'
+    ],
+    function (TelemetryTableController, objectUtils) {
 
         describe('The TelemetryTableController', function () {
 
-            var controller;
-
-            function promise(value) {
-                return {
-                    then: function (callback) {
-                        return promise(callback(value));
-                    }
-                };
-            }
+            var controller,
+                mockScope,
+                mockTimeout,
+                mockConductor,
+                mockAPI,
+                mockDomainObject,
+                mockTelemetryAPI,
+                mockObjectAPI,
+                mockCompositionAPI,
+                unobserve,
+                mockBounds;
 
             function getCallback(target, event) {
                 return target.calls.filter(function (call) {
@@ -43,24 +49,281 @@ define(
             }
 
             beforeEach(function () {
+                mockBounds = {
+                    start: 0,
+                    end: 10
+                };
+                mockConductor = jasmine.createSpyObj("conductor", [
+                    "bounds",
+                    "follow",
+                    "on",
+                    "off",
+                    "timeSystem"
+                ]);
+                mockConductor.bounds.andReturn(mockBounds);
+                mockConductor.follow.andReturn(false);
+
+                mockDomainObject = jasmine.createSpyObj("domainObject", [
+                    "getModel",
+                    "getId",
+                    "useCapability"
+                ]);
+                mockDomainObject.getModel.andReturn({});
+                mockDomainObject.getId.andReturn("mockId");
+                mockDomainObject.useCapability.andReturn(true);
+
+                mockCompositionAPI = jasmine.createSpyObj("compositionAPI", [
+                    "get"
+                ]);
+
+                mockObjectAPI = jasmine.createSpyObj("objectAPI", [
+                    "observe"
+                ]);
+                unobserve = jasmine.createSpy("unobserve");
+                mockObjectAPI.observe.andReturn(unobserve);
+
+                mockScope = jasmine.createSpyObj("scope", [
+                    "$on",
+                    "$watch",
+                    "$broadcast"
+                ]);
+                mockScope.domainObject = mockDomainObject;
+
+                mockTelemetryAPI = jasmine.createSpyObj("telemetryAPI", [
+                    "canProvideTelemetry",
+                    "subscribe",
+                    "getMetadata",
+                    "commonValuesForHints",
+                    "request",
+                    "limitEvaluator",
+                    "getValueFormatter"
+                ]);
+                mockTelemetryAPI.commonValuesForHints.andReturn([]);
+                mockTelemetryAPI.request.andReturn(Promise.resolve([]));
+
+
+                mockTelemetryAPI.canProvideTelemetry.andReturn(false);
+
+                mockTimeout = jasmine.createSpyObj("$timeout", [
+                    "cancel"
+                ]);
+
+                mockAPI = {
+                    conductor: mockConductor,
+                    objects: mockObjectAPI,
+                    telemetry: mockTelemetryAPI,
+                    composition: mockCompositionAPI
+                };
+                controller = new TelemetryTableController(mockScope, mockTimeout, mockAPI);
             });
 
-            it('registers listeners', function () {
+            describe('listens for', function () {
+                beforeEach(function () {
+                    controller.registerChangeListeners();
+                });
+                it('object mutation', function () {
+                    var calledObject = mockObjectAPI.observe.mostRecentCall.args[0];
+
+                    expect(mockObjectAPI.observe).toHaveBeenCalled();
+                    expect(calledObject.identifier.key).toEqual(mockDomainObject.getId());
+                });
+                it('conductor changes', function () {
+                    expect(mockConductor.on).toHaveBeenCalledWith("timeSystem", jasmine.any(Function));
+                    expect(mockConductor.on).toHaveBeenCalledWith("bounds", jasmine.any(Function));
+                    expect(mockConductor.on).toHaveBeenCalledWith("follow", jasmine.any(Function));
+                });
             });
 
-            it('deregisters all listeners', function () {
+            describe('deregisters all listeners on scope destruction', function () {
+                var timeSystemListener,
+                    boundsListener,
+                    followListener;
+
+                beforeEach(function () {
+                    controller.registerChangeListeners();
+
+                    timeSystemListener = getCallback(mockConductor.on, "timeSystem");
+                    boundsListener = getCallback(mockConductor.on, "bounds");
+                    followListener = getCallback(mockConductor.on, "follow");
+
+                    var destroy = getCallback(mockScope.$on, "$destroy");
+                    destroy();
+                });
+
+                it('object mutation', function () {
+                    expect(unobserve).toHaveBeenCalled();
+                });
+                it('conductor changes', function () {
+                    expect(mockConductor.off).toHaveBeenCalledWith("timeSystem", timeSystemListener);
+                    expect(mockConductor.off).toHaveBeenCalledWith("bounds", boundsListener);
+                    expect(mockConductor.off).toHaveBeenCalledWith("follow", followListener);
+                });
+            });
+
+            describe ('Subscribes to new data', function () {
+                var mockComposition,
+                    mockTelemetryObject,
+                    mockChildren,
+                    unsubscribe,
+                    done;
+
+                beforeEach(function () {
+                    mockComposition = jasmine.createSpyObj("composition", [
+                        "load"
+                    ]);
+
+                    mockTelemetryObject = jasmine.createSpyObj("mockTelemetryObject", [
+                        "something"
+                    ]);
+                    mockTelemetryObject.identifier = {
+                        key: "mockTelemetryObject"
+                    };
+
+                    unsubscribe = jasmine.createSpy("unsubscribe");
+                    mockTelemetryAPI.subscribe.andReturn(unsubscribe);
+
+                    mockChildren = [mockTelemetryObject];
+                    mockComposition.load.andReturn(Promise.resolve(mockChildren));
+                    mockCompositionAPI.get.andReturn(mockComposition);
+
+                    mockTelemetryAPI.canProvideTelemetry.andCallFake(function (obj){
+                        return obj.identifier.key === mockTelemetryObject.identifier.key;
+                    });
+
+                    done = false;
+                    controller.getData().then(function (){
+                        done = true;
+                    });
+                });
+
+                it('fetches historical data', function () {
+                    waitsFor(function () {
+                        return done;
+                    }, "getData to return", 100);
+
+                    runs(function () {
+                        expect(mockTelemetryAPI.request).toHaveBeenCalledWith(mockTelemetryObject, jasmine.any(Object));
+                    });
+                });
+
+                it('fetches historical data for the time period specified by the conductor bounds', function () {
+                    waitsFor(function () {
+                        return done;
+                    }, "getData to return", 100);
+
+                    runs(function () {
+                        expect(mockTelemetryAPI.request).toHaveBeenCalledWith(mockTelemetryObject, mockBounds);
+                    });
+                });
+
+                it('subscribes to new data', function () {
+                    waitsFor(function () {
+                        return done;
+                    }, "getData to return", 100);
+
+                    runs(function () {
+                        expect(mockTelemetryAPI.subscribe).toHaveBeenCalledWith(mockTelemetryObject, jasmine.any(Function), {});
+                    });
+
+                });
+                it('and unsubscribes on view destruction', function () {
+                    waitsFor(function () {
+                        return done;
+                    }, "getData to return", 100);
+
+                    runs(function () {
+                        var destroy = getCallback(mockScope.$on, "$destroy");
+                        destroy();
+
+                        expect(unsubscribe).toHaveBeenCalled();
+                    });
+                })
             });
 
             it('When in real-time mode, enables auto-scroll', function () {
+                controller.registerChangeListeners();
+
+                var followCallback = getCallback(mockConductor.on, "follow");
+                //Confirm pre-condition
+                expect(mockScope.autoScroll).toBeFalsy();
+
+                //Mock setting the conductor to 'follow' mode
+                followCallback(true);
+                expect(mockScope.autoScroll).toBe(true);
             });
 
-            it('Scrolls on a column matching the selected time system', function () {
+            describe('populates table columns', function () {
+                var domainMetadata;
+                var allMetadata;
+                var mockTimeSystem;
+
+                beforeEach(function () {
+                    domainMetadata = [{
+                        key: "column1",
+                        name: "Column 1",
+                        hints: {}
+                    }];
+
+                    allMetadata = [{
+                        key: "column1",
+                        name: "Column 1",
+                        hints: {}
+                    }, {
+                        key: "column2",
+                        name: "Column 2",
+                        hints: {}
+                    }, {
+                        key: "column3",
+                        name: "Column 3",
+                        hints: {}
+                    }];
+
+                    mockTimeSystem = {
+                        metadata: {
+                            key: "column1"
+                        }
+                    };
+
+                    mockTelemetryAPI.commonValuesForHints.andCallFake(function (metadata, hints) {
+                        if (_.eq(hints, ["x"])) {
+                            return domainMetadata;
+                        } else if (_.eq(hints, [])){
+                            return allMetadata;
+                        }
+                    });
+
+                    controller.loadColumns([mockDomainObject]);
+                });
+
+                it('based on metadata for given objects', function () {
+                    expect(mockScope.headers).toBeDefined();
+                    expect(mockScope.headers.length).toBeGreaterThan(0);
+                    expect(mockScope.headers.indexOf(allMetadata[0].name)).not.toBe(-1);
+                    expect(mockScope.headers.indexOf(allMetadata[1].name)).not.toBe(-1);
+                    expect(mockScope.headers.indexOf(allMetadata[2].name)).not.toBe(-1);
+                });
+
+                it('and sorts by column matching time system', function () {
+                    expect(mockScope.defaultSort).not.toEqual("Column 1");
+                    controller.sortByTimeSystem(mockTimeSystem);
+                    expect(mockScope.defaultSort).toEqual("Column 1");
+                });
             });
 
-            it('Removes telemetry rows that are now out of band from table', function () {
-            });
+            it('Removes telemetry rows from table when they fall out of bounds', function () {
+                var discardedRows = [
+                    {"column1": "value 1"},
+                    {"column2": "value 2"},
+                    {"column3": "value 3"},
+                ];
 
-            it('Populates table headers based on metadata for given objects', function () {
+                spyOn(controller.telemetry, "on").andCallThrough();
+
+                controller.registerChangeListeners();
+                expect(controller.telemetry.on).toHaveBeenCalledWith("discarded", jasmine.any(Function));
+                var onDiscard = getCallback(controller.telemetry.on, "discarded");
+                onDiscard(discardedRows);
+                expect(mockScope.$broadcast).toHaveBeenCalledWith("remove:rows", discardedRows);
             });
 
         });
