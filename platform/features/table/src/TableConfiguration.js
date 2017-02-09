@@ -59,7 +59,7 @@ define(
                         getTitle: function () {
                             return metadatum.name;
                         },
-                        getValue: function(telemetryDatum, limitEvaluator) {
+                        getValue: function (telemetryDatum, limitEvaluator) {
                             var isValueColumn = !!(metadatum.hints.y || metadatum.hints.range);
                             var alarm = isValueColumn &&
                                         limitEvaluator &&
@@ -70,7 +70,7 @@ define(
                                 value: telemetryDatum[metadatum.key]
                             };
 
-                            if (alarm){
+                            if (alarm) {
                                 value.cssClass = alarm.cssClass;
                             }
                             return value;
@@ -102,7 +102,7 @@ define(
          */
         TableConfiguration.prototype.getHeaders = function () {
             return this.columns.map(function (column, i) {
-                return column.getTitle()|| 'Column ' + (i + 1);
+                return column.getTitle() || 'Column ' + (i + 1);
             });
         };
 

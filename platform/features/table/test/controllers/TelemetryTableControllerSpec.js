@@ -26,7 +26,7 @@ define(
         '../../../../../src/api/objects/object-utils',
         'lodash'
     ],
-    function (TelemetryTableController, objectUtils) {
+    function (TelemetryTableController, objectUtils, _) {
 
         describe('The TelemetryTableController', function () {
 
@@ -186,12 +186,12 @@ define(
                     mockComposition.load.andReturn(Promise.resolve(mockChildren));
                     mockCompositionAPI.get.andReturn(mockComposition);
 
-                    mockTelemetryAPI.canProvideTelemetry.andCallFake(function (obj){
+                    mockTelemetryAPI.canProvideTelemetry.andCallFake(function (obj) {
                         return obj.identifier.key === mockTelemetryObject.identifier.key;
                     });
 
                     done = false;
-                    controller.getData().then(function (){
+                    controller.getData().then(function () {
                         done = true;
                     });
                 });
@@ -237,7 +237,7 @@ define(
 
                         expect(unsubscribe).toHaveBeenCalled();
                     });
-                })
+                });
             });
 
             it('When in real-time mode, enables auto-scroll', function () {
@@ -287,7 +287,7 @@ define(
                     mockTelemetryAPI.commonValuesForHints.andCallFake(function (metadata, hints) {
                         if (_.eq(hints, ["x"])) {
                             return domainMetadata;
-                        } else if (_.eq(hints, [])){
+                        } else if (_.eq(hints, [])) {
                             return allMetadata;
                         }
                     });
@@ -314,7 +314,7 @@ define(
                 var discardedRows = [
                     {"column1": "value 1"},
                     {"column2": "value 2"},
-                    {"column3": "value 3"},
+                    {"column3": "value 3"}
                 ];
 
                 spyOn(controller.telemetry, "on").andCallThrough();

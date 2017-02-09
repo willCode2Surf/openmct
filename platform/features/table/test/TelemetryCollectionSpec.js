@@ -43,7 +43,7 @@ define(
                             integer: number,
                             text: integerTextMap[number]
                         }
-                    }
+                    };
                 });
                 collection = new TelemetryCollection();
             });

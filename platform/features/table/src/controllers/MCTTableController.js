@@ -1,7 +1,10 @@
 
 define(
-    ['zepto'],
-    function ($) {
+    [
+        'zepto',
+        'lodash'
+    ],
+    function ($, _) {
 
         /**
          * A controller for the MCTTable directive. Populates scope with
@@ -134,7 +137,7 @@ define(
              */
             $scope.$watch('defaultSort', function (newColumn, oldColumn) {
                 if (newColumn !== oldColumn) {
-                    $scope.toggleSort(newColumn)
+                    $scope.toggleSort(newColumn);
                 }
             });
 
@@ -163,7 +166,7 @@ define(
                 }
             }.bind(this));
 
-            $scope.$on('$destroy', function() {
+            $scope.$on('$destroy', function () {
                 this.scrollable.off('scroll', this.onScroll);
                 this.destroyConductorListeners();
 
@@ -172,7 +175,7 @@ define(
                 delete this.$scope;
 
             }.bind(this));
-        };
+        }
 
         MCTTableController.prototype.destroyConductorListeners = function () {
             this.conductor.off('timeSystem', this.changeTimeSystem);
@@ -227,7 +230,7 @@ define(
          */
         MCTTableController.prototype.removeRows = function (event, rows) {
             var indexInDisplayRows;
-            rows.forEach(function (row){
+            rows.forEach(function (row) {
                 // Do a sequential search here. Only way of finding row is by
                 // object equality, so array is in effect unsorted.
                 indexInDisplayRows = this.$scope.displayRows.indexOf(row);
@@ -583,7 +586,7 @@ define(
 
             if (!promise) {
                 self.digestPromise = promise = new Promise(function (resolve) {
-                    raf(function() {
+                    raf(function () {
                         scope.$digest();
                         self.digestPromise = undefined;
                         resolve();
@@ -635,8 +638,8 @@ define(
 
             this.$scope.displayRows = this.filterAndSort(newRows || []);
             return this.resize(newRows)
-                .then(function (rows){
-                    return this.setVisibleRows(rows)
+                .then(function (rows) {
+                    return this.setVisibleRows(rows);
                 }.bind(this))
                 //Timeout following setVisibleRows to allow digest to
                 // perform DOM changes, otherwise scrollTo won't work.

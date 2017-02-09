@@ -46,14 +46,6 @@ define(
                 mockFormatService,
                 mockFormat;
 
-            function promise(value) {
-                return {
-                    then: function (callback) {
-                        return promise(callback(value));
-                    }
-                };
-            }
-
             function getCallback(target, event) {
                 return target.calls.filter(function (call) {
                     return call.args[0] === event;
@@ -239,11 +231,11 @@ define(
                         var rowsCallback = getCallback(mockScope.$watch, 'rows');
                         var setRowsPromise = rowsCallback(rowsAsc);
                         var promiseResolved = false;
-                        setRowsPromise.then(function() {
+                        setRowsPromise.then(function () {
                             promiseResolved = true;
                         });
 
-                        waitsFor(function (){
+                        waitsFor(function () {
                             return promiseResolved;
                         }, "promise to resolve", 100);
 
@@ -398,13 +390,13 @@ define(
                         mockScope.rows = testRows;
                         var setRowsPromise = controller.setRows(testRows);
                         var promiseResolved = false;
-                        setRowsPromise.then(function() {
+                        setRowsPromise.then(function () {
                             promiseResolved = true;
                         });
                         oldRows = mockScope.visibleRows;
                         mockScope.toggleSort('col2');
 
-                        waitsFor(function (){
+                        waitsFor(function () {
                             return promiseResolved;
                         }, "promise to resolve", 100);
 

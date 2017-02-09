@@ -37,7 +37,7 @@ define(
             this.sortField = undefined;
             this.lastBounds = {};
 
-            _.bindAll(this,[
+            _.bindAll(this, [
                 'addOne',
                 'iteratee'
             ]);
@@ -68,24 +68,25 @@ define(
             var endChanged = this.lastBounds.end !== bounds.end;
             var startIndex = 0;
             var endIndex = 0;
-            var discarded = undefined;
-            var added = undefined;
+            var discarded;
+            var added;
+            var testValue;
 
-            if (startChanged){
-                var testValue = _.set({}, this.sortField, bounds.start);
+            if (startChanged) {
+                testValue = _.set({}, this.sortField, bounds.start);
                 // Calculate the new index of the first item within the bounds
                 startIndex = _.sortedIndex(this.telemetry, testValue, this.sortField);
                 discarded = this.telemetry.splice(0, startIndex);
             }
             if (endChanged) {
-                var testValue = _.set({}, this.sortField, bounds.end);
+                testValue = _.set({}, this.sortField, bounds.end);
                 // Calculate the new index of the last item in bounds
                 endIndex = _.sortedLastIndex(this.highBuffer, testValue, this.sortField);
                 added = this.highBuffer.splice(0, endIndex);
                 this.telemetry = this.telemetry.concat(added);
             }
 
-            if (discarded && discarded.length > 0){
+            if (discarded && discarded.length > 0) {
                 /**
                  * A `discarded` event is thrown when telemetry data fall out of
                  * bounds due to a bounds change event
@@ -131,13 +132,15 @@ define(
             var boundsDefined = this.lastBounds &&
                 (this.lastBounds.start !== undefined && this.lastBounds.end !== undefined);
             var array;
+            var boundsLow;
+            var boundsHigh;
 
             // Insert into either in-bounds array, or the out of bounds high buffer.
             // Data in the high buffer will be re-evaluated for possible insertion on next tick
 
             if (boundsDefined) {
-                var boundsHigh = _.get(item, this.sortField) > this.lastBounds.end;
-                var boundsLow = _.get(item, this.sortField) < this.lastBounds.start;
+                boundsHigh = _.get(item, this.sortField) > this.lastBounds.end;
+                boundsLow = _.get(item, this.sortField) < this.lastBounds.start;
 
                 if (!boundsHigh && !boundsLow) {
                     array = this.telemetry;
@@ -227,7 +230,7 @@ define(
          *
          * @param {string} sortField An object property path.
          */
-        TelemetryCollection.prototype.sort = function (sortField){
+        TelemetryCollection.prototype.sort = function (sortField) {
             this.sortField = sortField;
             this.telemetry = _.sortBy(this.telemetry, this.iteratee);
         };
