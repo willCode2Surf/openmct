@@ -344,18 +344,11 @@ define(
                     this.$scope.visibleRows[this.$scope.visibleRows.length - 1]
                         .rowIndex === end) {
                     return this.digest();
-                    //return Promise.resolve(); // don't update if no changes are required.
                 }
             }
             //Set visible rows from display rows, based on calculated offset.
             this.$scope.visibleRows = this.$scope.displayRows.slice(start, end)
                 .map(function (row, i) {
-/*                    var formattedRow = JSON.parse(JSON.stringify(row));
-                    if (self.$scope.formatCell) {
-                        Object.keys(formattedRow).forEach(function (header) {
-                            formattedRow[header].text = self.$scope.formatCell(header, row[header].text);
-                        });
-                    } */
                     return {
                         rowIndex: start + i,
                         offsetY: ((start + i) * self.$scope.rowHeight) +
@@ -695,6 +688,7 @@ define(
         };
 
         /**
+         * Scroll the view to a given row index
          * @param displayRowIndex {number} The index in the displayed rows
          * to scroll to.
          */

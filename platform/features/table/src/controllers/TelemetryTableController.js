@@ -184,7 +184,7 @@ define(
          * On Time Conductor bounds change, update displayed telemetry. In the
          * case of a tick, previously visible telemetry that is now out of band
          * will be removed from the table.
-         * @param bounds
+         * @param {openmct.TimeConductorBounds~TimeConductorBounds} bounds
          */
         TelemetryTableController.prototype.changeBounds = function (bounds) {
             var follow = this.openmct.conductor.follow();
@@ -202,7 +202,7 @@ define(
         };
 
         /**
-         * Release the current subscription (called when scope is destroyed)
+         * Clean controller, deregistering listeners etc.
          */
         TelemetryTableController.prototype.destroy = function () {
 
@@ -268,7 +268,7 @@ define(
         /**
          * Request telemetry data from an historical store for given objects.
          * @private
-         * @param {module:openmct.DomainObject[]} The domain objects to request telemetry for
+         * @param {object[]} The domain objects to request telemetry for
          * @returns {Promise} resolved when historical data is available
          */
         TelemetryTableController.prototype.getHistoricalData = function (objects) {
@@ -285,7 +285,7 @@ define(
                  * On completion of batched processing, set the rows on scope
                  */
                 function finishProcessing(){
-                    telemetryCollection.addAll(rowData);
+                    telemetryCollection.add([rowData]);
                     scope.rows = telemetryCollection.telemetry;
                     scope.loading = false;
 
@@ -356,7 +356,7 @@ define(
         /**
          * Subscribe to real-time data for the given objects.
          * @private
-         * @param {module:openmct.DomainObject[]} objects The objects to subscribe to.
+         * @param {object[]} objects The objects to subscribe to.
          */
         TelemetryTableController.prototype.subscribeToNewData = function (objects) {
             var telemetryApi = this.openmct.telemetry;
@@ -374,7 +374,7 @@ define(
 
             function newData(domainObject, datum) {
                 limitEvaluator = telemetryApi.limitEvaluator(domainObject);
-                added = telemetryCollection.add(this.table.getRowValues(limitEvaluator, datum));
+                added = telemetryCollection.add([this.table.getRowValues(limitEvaluator, datum)]);
 
                 //Inform table that a new row has been added
                 if (this.$scope.rows.length > maxRows) {
@@ -395,6 +395,12 @@ define(
             return objects;
         };
 
+        /**
+         * Request historical data, and subscribe to for real-time data.
+         * @private
+         * @returns {Promise} A promise that is resolved once subscription is
+         * established, and historical telemetry is received and processed.
+         */
         TelemetryTableController.prototype.getData = function () {
             var telemetryApi = this.openmct.telemetry;
             var compositionApi = this.openmct.composition;

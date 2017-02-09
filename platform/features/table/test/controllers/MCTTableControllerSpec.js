@@ -118,7 +118,7 @@ define(
                 expect(mockScope.$watch).toHaveBeenCalledWith('rows', jasmine.any(Function));
             });
 
-            it('destroys listeners on destruction', function () {
+            it('unregisters listeners on destruction', function () {
                 expect(mockScope.$on).toHaveBeenCalledWith('$destroy', jasmine.any(Function));
                 getCallback(mockScope.$on, '$destroy')();
 
@@ -490,17 +490,10 @@ define(
 
                             mockScope.displayRows = controller.sortRows(testRows.slice(0));
 
-                            controller.addRows(undefined, [row4]);
+                            controller.addRows(undefined, [row4, row5, row6, row6]);
                             expect(mockScope.displayRows[0].col2.text).toEqual('xyz');
-
-                            controller.addRows(undefined, [row5]);
-                            expect(mockScope.displayRows[4].col2.text).toEqual('aaa');
-
-                            controller.addRows(undefined, [row6]);
-                            expect(mockScope.displayRows[2].col2.text).toEqual('ggg');
-
-                            //Add a duplicate row
-                            controller.addRows(undefined, [row6]);
+                            expect(mockScope.displayRows[6].col2.text).toEqual('aaa');
+                            //Added a duplicate row
                             expect(mockScope.displayRows[2].col2.text).toEqual('ggg');
                             expect(mockScope.displayRows[3].col2.text).toEqual('ggg');
                         });
