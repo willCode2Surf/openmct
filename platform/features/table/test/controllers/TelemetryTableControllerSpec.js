@@ -104,9 +104,9 @@ define(
 
                 mockTelemetryAPI.canProvideTelemetry.andReturn(false);
 
-                mockTimeout = jasmine.createSpyObj("$timeout", [
-                    "cancel"
-                ]);
+                mockTimeout = jasmine.createSpy("timeout");
+                mockTimeout.andReturn(1); // Return something
+                mockTimeout.cancel = jasmine.createSpy("cancel");
 
                 mockAPI = {
                     conductor: mockConductor,
@@ -307,6 +307,40 @@ define(
                     expect(mockScope.defaultSort).not.toEqual("Column 1");
                     controller.sortByTimeSystem(mockTimeSystem);
                     expect(mockScope.defaultSort).toEqual("Column 1");
+                });
+
+                it('batches processing of rows for performance when receiving historical telemetry', function () {
+                    var mockHistoricalData = [
+                        {
+                            "column1": 1,
+                            "column2": 2,
+                            "column3": 3
+                        },{
+                            "column1": 4,
+                            "column2": 5,
+                            "column3": 6
+                        }, {
+                            "column1": 7,
+                            "column2": 8,
+                            "column3": 9
+                        }
+                    ];
+                    controller.batchSize = 2;
+                    mockTelemetryAPI.request.andReturn(Promise.resolve(mockHistoricalData));
+                    controller.getHistoricalData([mockDomainObject]);
+
+                    waitsFor(function () {
+                        return !!controller.timeoutHandle;
+                    }, "first batch to be processed", 100);
+
+                    runs(function () {
+                        //Verify that timeout is being used to yield process
+                        expect(mockTimeout).toHaveBeenCalled();
+                        mockTimeout.mostRecentCall.args[0]();
+                        expect(mockTimeout.calls.length).toBe(2);
+                        mockTimeout.mostRecentCall.args[0]()
+                        expect(mockScope.rows.length).toBe(3);
+                    })
                 });
             });
 

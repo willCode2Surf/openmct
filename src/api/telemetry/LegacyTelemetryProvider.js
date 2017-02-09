@@ -60,8 +60,6 @@ define([
             return d;
         }, datum);
 
-        datum.name = domainObject.name;
-
         return datum;
     }
 

@@ -287,7 +287,7 @@ define(
                  * On completion of batched processing, set the rows on scope
                  */
                 function finishProcessing() {
-                    telemetryCollection.add([rowData]);
+                    telemetryCollection.add(rowData);
                     scope.rows = telemetryCollection.telemetry;
                     scope.loading = false;
 
@@ -313,7 +313,7 @@ define(
                          return, process next batch
                          */
                         self.timeoutHandle = self.$timeout(function () {
-                            processData(historicalData, index + this.batchSize, limitEvaluator);
+                            processData(historicalData, index + self.batchSize, limitEvaluator);
                         });
                     }
                 }
@@ -341,7 +341,7 @@ define(
                 this.$timeout.cancel(this.timeoutHandle);
 
                 if (objects.length > 0) {
-                    objects.forEach(requestData.bind(this));
+                    objects.forEach(requestData);
                 } else {
                     scope.loading = false;
                     resolve([]);
@@ -365,7 +365,7 @@ define(
             var maxRows = Number.MAX_VALUE;
             var limitEvaluator;
             var added = false;
-            var scope = this.scope;
+            var scope = this.$scope;
             var table = this.table;
 
             this.subscriptions.forEach(function (subscription) {

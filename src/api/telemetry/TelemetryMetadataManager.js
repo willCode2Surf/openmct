@@ -30,11 +30,6 @@ define([
     function valueMetadatasFromOldFormat(metadata) {
         var valueMetadatas = [];
 
-        valueMetadatas.push({
-            key: 'name',
-            name: 'Name'
-        });
-
         metadata.domains.forEach(function (domain, index) {
             var valueMetadata = _.clone(domain);
             valueMetadata.hints = {
