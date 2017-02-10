@@ -253,14 +253,15 @@ define(
 
                 this.filterColumns();
 
+                // Default to no sort on underlying telemetry collection. Sorting
+                // is necessary to do bounds filtering, but this is only possible
+                // if data matches selected time system
+                this.telemetry.sort(undefined);
+
                 var timeSystem = this.openmct.conductor.timeSystem();
                 if (timeSystem) {
                     this.sortByTimeSystem(timeSystem);
                 }
-                if (!this.telemetry.sortColumn && domainColumns.length > 0) {
-                    this.telemetry.sort(domainColumns[0].name + '.value');
-                }
-
 
             }
             return objects;

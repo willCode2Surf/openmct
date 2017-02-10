@@ -338,9 +338,9 @@ define(
                         expect(mockTimeout).toHaveBeenCalled();
                         mockTimeout.mostRecentCall.args[0]();
                         expect(mockTimeout.calls.length).toBe(2);
-                        mockTimeout.mostRecentCall.args[0]()
+                        mockTimeout.mostRecentCall.args[0]();
                         expect(mockScope.rows.length).toBe(3);
-                    })
+                    });
                 });
             });
 

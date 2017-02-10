@@ -52,7 +52,7 @@ define(
                 metadata.forEach(function (metadatum) {
                     var formatter = telemetryApi.getValueFormatter(metadatum);
 
-                    self.addColumn({
+                    self.columns.push({
                         getKey: function () {
                             return metadatum.key;
                         },
@@ -79,21 +79,6 @@ define(
                 });
             }
             return this;
-        };
-
-        /**
-         * Add a column definition to this Table
-         * @param {RangeColumn | DomainColumn | NameColumn} column
-         * @param {Number} [index] Where the column should appear (will be
-         * affected by column filtering)
-         * @private
-         */
-        TableConfiguration.prototype.addColumn = function (column, index) {
-            if (typeof index === 'undefined') {
-                this.columns.push(column);
-            } else {
-                this.columns.splice(index, 0, column);
-            }
         };
 
         /**

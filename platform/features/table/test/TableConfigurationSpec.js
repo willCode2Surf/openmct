@@ -58,40 +58,7 @@ define(
 
                 table = new Table(mockDomainObject, mockAPI);
             });
-
-            it("Add column with no index adds new column to the end", function () {
-                var firstColumn = {title: 'First Column'},
-                    secondColumn = {title: 'Second Column'},
-                    thirdColumn = {title: 'Third Column'};
-
-                table.addColumn(firstColumn);
-                table.addColumn(secondColumn);
-                table.addColumn(thirdColumn);
-
-                expect(table.columns).toBeDefined();
-                expect(table.columns.length).toBe(3);
-                expect(table.columns[0]).toBe(firstColumn);
-                expect(table.columns[1]).toBe(secondColumn);
-                expect(table.columns[2]).toBe(thirdColumn);
-            });
-
-            it("Add column with index adds new column at the specified" +
-                " position", function () {
-                var firstColumn = {title: 'First Column'},
-                    secondColumn = {title: 'Second Column'},
-                    thirdColumn = {title: 'Third Column'};
-
-                table.addColumn(firstColumn);
-                table.addColumn(thirdColumn);
-                table.addColumn(secondColumn, 1);
-
-                expect(table.columns).toBeDefined();
-                expect(table.columns.length).toBe(3);
-                expect(table.columns[0]).toBe(firstColumn);
-                expect(table.columns[1]).toBe(secondColumn);
-                expect(table.columns[2]).toBe(thirdColumn);
-            });
-
+            
             describe("Building columns from telemetry metadata", function () {
                 var metadata = [
                     {

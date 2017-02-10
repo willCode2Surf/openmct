@@ -72,6 +72,12 @@ define(
             var added;
             var testValue;
 
+            // If collection is not sorted by a time field, we cannot respond to
+            // bounds events
+            if (this.sortField === undefined) {
+                return;
+            }
+
             if (startChanged) {
                 testValue = _.set({}, this.sortField, bounds.start);
                 // Calculate the new index of the first item within the bounds
@@ -134,6 +140,13 @@ define(
             var array;
             var boundsLow;
             var boundsHigh;
+
+            // If collection is not sorted by a time field, we cannot respond to
+            // bounds events, so no bounds checking necessary
+            if (this.sortField === undefined) {
+                this.telemetry.push(item);
+                return true;
+            }
 
             // Insert into either in-bounds array, or the out of bounds high buffer.
             // Data in the high buffer will be re-evaluated for possible insertion on next tick
@@ -232,7 +245,9 @@ define(
          */
         TelemetryCollection.prototype.sort = function (sortField) {
             this.sortField = sortField;
-            this.telemetry = _.sortBy(this.telemetry, this.iteratee);
+            if (sortField !== undefined) {
+                this.telemetry = _.sortBy(this.telemetry, this.iteratee);
+            }
         };
 
         return TelemetryCollection;
